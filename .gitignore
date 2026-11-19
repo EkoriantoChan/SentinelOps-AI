@@ -1,0 +1,41 @@
+# Environment & Secrets (NEVER COMMIT TO PUBLIC REPO)
+.env
+.env.local
+*.env
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Node & Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database & Persistent storage
+pg_data/
+n8n_data/
+*.sqlite
+*.sqlite3
+*.db
+*.log
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary test artifacts
+test_*.json
+test_*.py
+scratch/

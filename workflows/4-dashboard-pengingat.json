@@ -1,0 +1,330 @@
+{
+  "name": "dashboard-pengingat",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard-data",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        200
+      ],
+      "id": "node-webhook-dashboard",
+      "name": "Webhook Dashboard",
+      "webhookId": "91a82e13-1a2b-43c4-95d1-123456789003"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object(\n  'faults', (SELECT coalesce(json_agg(f), '[]'::json) FROM (SELECT * FROM ide09.equipment_faults ORDER BY id DESC LIMIT 20) f),\n  'expenses', (SELECT coalesce(json_agg(e), '[]'::json) FROM (SELECT * FROM ide09.sparepart_expenses ORDER BY tanggal DESC, id DESC LIMIT 20) e),\n  'reminders', (SELECT coalesce(json_agg(r), '[]'::json) FROM (SELECT * FROM ide09.inspection_reminders ORDER BY waktu ASC LIMIT 20) r),\n  'pending', (SELECT coalesce(json_agg(p), '[]'::json) FROM (SELECT * FROM ide09.pending_actions WHERE status = 'pending' ORDER BY id DESC) p),\n  'audit_log', (SELECT coalesce(json_agg(a), '[]'::json) FROM (SELECT * FROM ide09.audit_log ORDER BY id DESC LIMIT 25) a),\n  'kpi', json_build_object(\n    'open_faults', (SELECT count(*) FROM ide09.equipment_faults WHERE status = 'terbuka'),\n    'critical_faults', (SELECT count(*) FROM ide09.equipment_faults WHERE status = 'terbuka' AND severity = 'CRITICAL'),\n    'total_expenses', (SELECT coalesce(sum(jumlah), 0) FROM ide09.sparepart_expenses),\n    'pending_actions', (SELECT count(*) FROM ide09.pending_actions WHERE status = 'pending'),\n    'active_reminders', (SELECT count(*) FROM ide09.inspection_reminders WHERE status = 'aktif')\n  ),\n  'system', json_build_object(\n    'timezone', 'Asia/Jakarta (WIB)',\n    'schema', 'ide09',\n    'server_time', now() AT TIME ZONE 'Asia/Jakarta'\n  )\n) AS dashboard_data;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        440,
+        200
+      ],
+      "id": "node-ambil-data-dashboard",
+      "name": "Ambil Data Dashboard",
+      "credentials": {
+        "postgres": {
+          "id": "VD4tpWrGjavFYIFf",
+          "name": "SentinelOps Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.dashboard_data) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        200
+      ],
+      "id": "node-balas-dashboard",
+      "name": "Balas Dashboard"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        500
+      ],
+      "id": "node-setiap-menit",
+      "name": "Setiap Menit"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trigger-reminders",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        660
+      ],
+      "id": "node-jalankan-pengingat-sekarang",
+      "name": "Jalankan Pengingat Sekarang",
+      "webhookId": "91a82e14-1a2b-43c4-95d1-123456789004"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, chat_id, asset_tag, teks, to_char(waktu AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI:SS') as waktu_wib FROM ide09.inspection_reminders WHERE status = 'aktif' AND waktu <= (now() AT TIME ZONE 'Asia/Jakarta') ORDER BY waktu ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        460,
+        580
+      ],
+      "id": "node-ambil-pengingat-jatuh-tempo",
+      "name": "Ambil Pengingat Jatuh Tempo",
+      "credentials": {
+        "postgres": {
+          "id": "VD4tpWrGjavFYIFf",
+          "name": "SentinelOps Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-reminders",
+              "leftValue": "={{ $json.id ? 'yes' : '' }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        580
+      ],
+      "id": "node-ada-pengingat",
+      "name": "Ada Pengingat?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "=🔔 **PREVENTIVE PLANT INSPECTION REMINDER (WIB)**\\n\\n📌 **Asset/Machine:** {{ $json.asset_tag }}\\n📝 **Agenda:** {{ $json.teks }}\\n⏰ **Schedule:** {{ $json.waktu_wib }} WIB\\n\\nSupervisor / line technician: please inspect this equipment immediately.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        900,
+        500
+      ],
+      "id": "node-kirim-pengingat-telegram",
+      "name": "Kirim Pengingat Telegram",
+      "continueOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "cUjj27wAHfil3hGf",
+          "name": "SentinelOps AI Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ide09.inspection_reminders SET status = 'terkirim' WHERE id = $1;\nINSERT INTO ide09.audit_log (chat_id, event, detail) VALUES ($2, 'reminder_dispatched', jsonb_build_object('reminder_id', $1::int, 'asset_tag', $3::text, 'waktu', now())) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.id, $json.chat_id, $json.asset_tag] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1120,
+        500
+      ],
+      "id": "node-catat-audit-pengingat",
+      "name": "Catat Audit Pengingat",
+      "credentials": {
+        "postgres": {
+          "id": "VD4tpWrGjavFYIFf",
+          "name": "SentinelOps Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"reminders_processed\", \"timestamp\": \"={{ new Date().toISOString() }}\"}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        660
+      ],
+      "id": "node-balas-trigger-reminders",
+      "name": "Balas Trigger Reminders"
+    }
+  ],
+  "connections": {
+    "Webhook Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Ambil Data Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Data Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Balas Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Setiap Menit": {
+      "main": [
+        [
+          {
+            "node": "Ambil Pengingat Jatuh Tempo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jalankan Pengingat Sekarang": {
+      "main": [
+        [
+          {
+            "node": "Ambil Pengingat Jatuh Tempo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Balas Trigger Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Pengingat Jatuh Tempo": {
+      "main": [
+        [
+          {
+            "node": "Ada Pengingat?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ada Pengingat?": {
+      "main": [
+        [
+          {
+            "node": "Kirim Pengingat Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim Pengingat Telegram": {
+      "main": [
+        [
+          {
+            "node": "Catat Audit Pengingat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

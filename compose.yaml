@@ -1,0 +1,97 @@
+# =============================================================================
+# SentinelOps AI: Governed Smart Manufacturing Maintenance Copilot Stack
+# n8n + external task-runners + PostgreSQL 16 (ide09 schema) + SCADA Dashboard + Cloudflare Tunnel
+# =============================================================================
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-16.15-alpine}
+    container_name: sentinelops-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-sentinelops}
+      - POSTGRES_USER=${POSTGRES_USER:-sentinel}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sentinelops-secret-pw}
+      - TZ=Asia/Jakarta
+      - PGTZ=Asia/Jakarta
+    volumes:
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${PG_HOST_PORT:-5442}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentinel} -d ${POSTGRES_DB:-sentinelops}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-2.44.7}
+    container_name: sentinelops-n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${N8N_HOST_PORT:-5690}:5678"
+    environment:
+      - GENERIC_TIMEZONE=Asia/Jakarta
+      - TZ=Asia/Jakarta
+      - WEBHOOK_URL=${PUBLIC_WEBHOOK_URL:-https://bring-fields-event-mere.trycloudflare.com/}
+      - N8N_WEBHOOK_URL=${PUBLIC_WEBHOOK_URL:-https://bring-fields-event-mere.trycloudflare.com/}
+      - N8N_EDITOR_BASE_URL=http://localhost:${N8N_HOST_PORT:-5690}/
+      - N8N_RUNNERS_MODE=external
+      - N8N_RUNNERS_BROKER_LISTEN_ADDRESS=0.0.0.0
+      - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN:-sentinelops-runners-token-lab}
+      - N8N_NATIVE_PYTHON_RUNNER=true
+      - N8N_DEFAULT_BINARY_DATA_MODE=default
+      - NODE_FUNCTION_ALLOW_BUILTIN=*
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=${EXECUTIONS_DATA_SAVE_ON_ERROR:-all}
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=${EXECUTIONS_DATA_SAVE_ON_SUCCESS:-all}
+      - EXECUTIONS_DATA_SAVE_ON_PROGRESS=${EXECUTIONS_DATA_SAVE_ON_PROGRESS:-false}
+      - EXECUTIONS_DATA_PRUNE=${EXECUTIONS_DATA_PRUNE:-true}
+      - EXECUTIONS_DATA_MAX_AGE=${EXECUTIONS_DATA_MAX_AGE:-336}
+      - EXECUTIONS_DATA_PRUNE_MAX_COUNT=${EXECUTIONS_DATA_PRUNE_MAX_COUNT:-10000}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  task-runners:
+    image: n8nio/runners:${N8N_VERSION:-2.44.7}
+    container_name: sentinelops-task-runners
+    restart: unless-stopped
+    environment:
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n:5679
+      - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN:-sentinelops-runners-token-lab}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NODE_FUNCTION_ALLOW_BUILTIN=*
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+      - TZ=Asia/Jakarta
+    volumes:
+      - ./docker/n8n-task-runners.json:/etc/n8n-task-runners.json:ro
+      - n8n_data:/home/node/.n8n
+
+  dashboard:
+    image: nginx:alpine
+    container_name: sentinelops-dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SCADA_HOST_PORT:-8085}:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+    depends_on:
+      - n8n
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: sentinelops-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://n8n:5678
+    depends_on:
+      - n8n
+
+volumes:
+  pg_data:
+  n8n_data:

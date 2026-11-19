@@ -1,0 +1,692 @@
+{
+  "name": "entry-pesan-konfirmasi",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pesan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        200
+      ],
+      "id": "node-webhook-pesan",
+      "name": "Webhook Pesan",
+      "webhookId": "91a82e11-1a2b-43c4-95d1-123456789001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body || $input.item.json;\nconst chat_id = body.chat_id || (body.message && body.message.chat ? String(body.message.chat.id) : null);\nconst teks = body.teks || body.text || (body.message ? body.message.text : '') || '';\nconst audio_base64 = body.audio_base64 || null;\nconst foto_base64 = body.foto_base64 || null;\nconst source = body.source || 'webhook';\n\nreturn {\n  json: {\n    chat_id: chat_id ? String(chat_id) : null,\n    teks,\n    audio_base64,\n    foto_base64,\n    source\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        200
+      ],
+      "id": "node-siapkan-webhook",
+      "name": "Siapkan dari Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-chat-id",
+              "leftValue": "={{ $json.chat_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        640,
+        200
+      ],
+      "id": "node-ada-chat-id",
+      "name": "Ada chat_id?"
+    },
+    {
+      "parameters": {
+        "workflowId": "bCgEWPLdrRaGfVZb",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "values": {
+            "chat_id": "={{ $json.chat_id }}",
+            "teks": "={{ $json.teks }}",
+            "audio_base64": "={{ $json.audio_base64 }}",
+            "foto_base64": "={{ $json.foto_base64 }}",
+            "source": "={{ $json.source }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        860,
+        140
+      ],
+      "id": "node-proses-pesan-core-agent",
+      "name": "Proses Pesan (Core Agent)"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        140
+      ],
+      "id": "node-balas-pesan",
+      "name": "Balas Pesan"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"chat_id diperlukan untuk otorisasi SentinelOps AI\"}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        860,
+        280
+      ],
+      "id": "node-balas-error-400",
+      "name": "Balas Error 400"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "konfirmasi",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        460
+      ],
+      "id": "node-webhook-konfirmasi",
+      "name": "Webhook Konfirmasi",
+      "webhookId": "91a82e12-1a2b-43c4-95d1-123456789002"
+    },
+    {
+      "parameters": {
+        "workflowId": "zAY2rguMOw7YSHXx",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "values": {
+            "chat_id": "={{ $json.body ? ($json.body.chat_id || $json.chat_id) : $json.chat_id }}",
+            "request_id": "={{ $json.body ? ($json.body.request_id || $json.request_id) : $json.request_id }}",
+            "decision": "={{ $json.body ? ($json.body.decision || $json.decision) : $json.decision }}",
+            "source": "webhook"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        500,
+        460
+      ],
+      "id": "node-proses-keputusan-core-konfirmasi",
+      "name": "Proses Keputusan (Core Konfirmasi)"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        460
+      ],
+      "id": "node-balas-konfirmasi",
+      "name": "Balas Konfirmasi"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        800
+      ],
+      "id": "node-telegram-trigger",
+      "name": "Telegram Trigger",
+      "webhookId": "0293d9c9-8e61-42db-8f8d-e0552187e47f",
+      "credentials": {
+        "telegramApi": {
+          "id": "cUjj27wAHfil3hGf",
+          "name": "SentinelOps AI Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.callback_query ? 'callback' : '' }}",
+                    "rightValue": "callback",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message && $json.message.voice ? 'voice' : '' }}",
+                    "rightValue": "voice",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message && $json.message.photo ? 'photo' : '' }}",
+                    "rightValue": "photo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message && $json.message.text ? 'text' : '' }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        420,
+        800
+      ],
+      "id": "node-jenis-update",
+      "name": "Jenis Update"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $input.item.json.callback_query;\nconst data = (cb && cb.data) ? cb.data : '';\nconst parts = data.split(':');\nconst decision = parts[0] === 'confirm' ? 'confirm' : (parts[0] === 'cancel' ? 'cancel' : 'unknown');\nconst request_id = parts[1] || '';\nconst chat_id = cb && cb.message && cb.message.chat ? String(cb.message.chat.id) : String(cb.from.id);\nconst callback_query_id = cb.id;\n\nreturn {\n  json: {\n    chat_id,\n    request_id,\n    decision,\n    callback_query_id,\n    source: 'telegram'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        640
+      ],
+      "id": "node-ambil-data-tombol",
+      "name": "Ambil Data Tombol"
+    },
+    {
+      "parameters": {
+        "workflowId": "zAY2rguMOw7YSHXx",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "values": {
+            "chat_id": "={{ $json.chat_id }}",
+            "request_id": "={{ $json.request_id }}",
+            "decision": "={{ $json.decision }}",
+            "source": "telegram"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        860,
+        640
+      ],
+      "id": "node-proses-tombol-core-konfirmasi",
+      "name": "Proses Tombol (Core Konfirmasi)"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $('Ambil Data Tombol').first().json.callback_query_id }}",
+        "additionalFields": {
+          "text": "Keputusan telah diproses oleh SentinelOps AI."
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1080,
+        640
+      ],
+      "id": "node-jawab-tombol-telegram",
+      "name": "Jawab Tombol Telegram",
+      "credentials": {
+        "telegramApi": {
+          "id": "cUjj27wAHfil3hGf",
+          "name": "SentinelOps AI Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "download": true
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        780
+      ],
+      "id": "node-unduh-voice-note",
+      "name": "Unduh Voice Note",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "telegramApi": {
+          "id": "cUjj27wAHfil3hGf",
+          "name": "SentinelOps AI Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.message.photo[$json.message.photo.length - 1].file_id }}",
+        "download": true
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        900
+      ],
+      "id": "node-unduh-foto-struk",
+      "name": "Unduh Foto Struk",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "telegramApi": {
+          "id": "cUjj27wAHfil3hGf",
+          "name": "SentinelOps AI Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let audio_base64 = null;\nlet foto_base64 = null;\n\nif ($input.item.binary && $input.item.binary.data) {\n  let b64 = null;\n  try {\n    if (typeof this.helpers?.getBinaryDataBuffer === 'function') {\n      const buf = await this.helpers.getBinaryDataBuffer(0, 'data');\n      if (buf) b64 = buf.toString('base64');\n    }\n  } catch (e) {}\n\n  if (!b64 && $input.item.binary.data.data && $input.item.binary.data.data !== 'filesystem-v2') {\n    b64 = $input.item.binary.data.data;\n  }\n\n  if (!b64 && $input.item.binary.data.id) {\n    try {\n      const fs = require('fs');\n      const relPath = $input.item.binary.data.id.replace(/^filesystem-v2:/, '');\n      const fullPath = '/home/node/.n8n/storage/' + relPath;\n      if (fs.existsSync(fullPath)) {\n        b64 = fs.readFileSync(fullPath).toString('base64');\n      }\n    } catch (e) {}\n  }\n\n  const mime = $input.item.binary.data.mimeType || '';\n  const ext = $input.item.binary.data.fileExtension || '';\n  if (mime.includes('audio') || mime.includes('ogg') || ext === 'oga' || ext === 'ogg') {\n    audio_base64 = b64;\n  } else {\n    foto_base64 = b64;\n  }\n}\n\nlet msg = {};\ntry {\n  msg = $('Telegram Trigger').first().json.message || {};\n} catch (e) {}\n\nconst chat_id = msg.chat ? String(msg.chat.id) : null;\nconst teks = msg.caption || '';\n\nreturn {\n  json: {\n    chat_id,\n    teks,\n    audio_base64,\n    foto_base64,\n    source: 'telegram'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        840
+      ],
+      "id": "node-file-telegram-base64",
+      "name": "File Telegram ke Base64"
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $input.item.json.message;\nreturn {\n  json: {\n    chat_id: msg && msg.chat ? String(msg.chat.id) : null,\n    teks: msg ? (msg.text || '') : '',\n    audio_base64: null,\n    foto_base64: null,\n    source: 'telegram'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        1020
+      ],
+      "id": "node-teks-telegram",
+      "name": "Teks Telegram"
+    },
+    {
+      "parameters": {
+        "workflowId": "bCgEWPLdrRaGfVZb",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "values": {
+            "chat_id": "={{ $json.chat_id }}",
+            "teks": "={{ $json.teks }}",
+            "audio_base64": "={{ $json.audio_base64 }}",
+            "foto_base64": "={{ $json.foto_base64 }}",
+            "source": "telegram"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        920
+      ],
+      "id": "node-proses-pesan-telegram-core-agent",
+      "name": "Proses Pesan Telegram (Core Agent)"
+    }
+  ],
+  "connections": {
+    "Webhook Pesan": {
+      "main": [
+        [
+          {
+            "node": "Siapkan dari Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siapkan dari Webhook": {
+      "main": [
+        [
+          {
+            "node": "Ada chat_id?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ada chat_id?": {
+      "main": [
+        [
+          {
+            "node": "Proses Pesan (Core Agent)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Balas Error 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proses Pesan (Core Agent)": {
+      "main": [
+        [
+          {
+            "node": "Balas Pesan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Konfirmasi": {
+      "main": [
+        [
+          {
+            "node": "Proses Keputusan (Core Konfirmasi)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proses Keputusan (Core Konfirmasi)": {
+      "main": [
+        [
+          {
+            "node": "Balas Konfirmasi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Jenis Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jenis Update": {
+      "main": [
+        [
+          {
+            "node": "Ambil Data Tombol",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unduh Voice Note",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unduh Foto Struk",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Teks Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Data Tombol": {
+      "main": [
+        [
+          {
+            "node": "Proses Tombol (Core Konfirmasi)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proses Tombol (Core Konfirmasi)": {
+      "main": [
+        [
+          {
+            "node": "Jawab Tombol Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unduh Voice Note": {
+      "main": [
+        [
+          {
+            "node": "File Telegram ke Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unduh Foto Struk": {
+      "main": [
+        [
+          {
+            "node": "File Telegram ke Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Telegram ke Base64": {
+      "main": [
+        [
+          {
+            "node": "Proses Pesan Telegram (Core Agent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teks Telegram": {
+      "main": [
+        [
+          {
+            "node": "Proses Pesan Telegram (Core Agent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

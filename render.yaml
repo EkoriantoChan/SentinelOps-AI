@@ -1,0 +1,96 @@
+# =============================================================================
+# Render Blueprint Specification for SentinelOps AI
+# Deploys Managed PostgreSQL 16, n8n Copilot Web Service, and SCADA Static Dashboard
+# =============================================================================
+services:
+  # 1. n8n Copilot Automation Service
+  - type: web
+    name: sentinelops-n8n
+    runtime: image
+    image:
+      url: docker.n8n.io/n8nio/n8n:2.44.7
+    plan: starter
+    region: singapore
+    disk:
+      name: n8n-data
+      mountPath: /home/node/.n8n
+      sizeGB: 5
+    envVars:
+      - key: GENERIC_TIMEZONE
+        value: Asia/Jakarta
+      - key: TZ
+        value: Asia/Jakarta
+      - key: N8N_DIAGNOSTICS_ENABLED
+        value: "false"
+      - key: N8N_PERSONALIZATION_ENABLED
+        value: "false"
+      - key: N8N_DEFAULT_BINARY_DATA_MODE
+        value: filesystem
+      - key: N8N_RUNNERS_MODE
+        value: internal
+      - key: N8N_NATIVE_PYTHON_RUNNER
+        value: "true"
+      - key: EXECUTIONS_DATA_SAVE_ON_ERROR
+        value: all
+      - key: EXECUTIONS_DATA_SAVE_ON_SUCCESS
+        value: all
+      - key: EXECUTIONS_DATA_PRUNE
+        value: "true"
+      - key: EXECUTIONS_DATA_MAX_AGE
+        value: "336"
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_HOST
+        fromDatabase:
+          name: sentinelops-db
+          property: host
+      - key: DB_POSTGRESDB_PORT
+        fromDatabase:
+          name: sentinelops-db
+          property: port
+      - key: DB_POSTGRESDB_DATABASE
+        fromDatabase:
+          name: sentinelops-db
+          property: database
+      - key: DB_POSTGRESDB_USER
+        fromDatabase:
+          name: sentinelops-db
+          property: user
+      - key: DB_POSTGRESDB_PASSWORD
+        fromDatabase:
+          name: sentinelops-db
+          property: password
+      - key: DB_POSTGRESDB_SCHEMA
+        value: n8n_system
+      - key: NODE_FUNCTION_ALLOW_BUILTIN
+        value: "*"
+      - key: NODE_FUNCTION_ALLOW_EXTERNAL
+        value: "*"
+      - key: WEBHOOK_URL
+        value: "https://sentinelops-n8n.onrender.com/"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+
+  # 2. SCADA Control-Plane Static Dashboard
+  - type: web
+    name: sentinelops-scada-dashboard
+    runtime: static
+    plan: free
+    region: singapore
+    buildCommand: ""
+    staticPublishPath: ./dashboard
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+
+databases:
+  # 3. PostgreSQL 16 Managed Database (ide09 schema)
+  - name: sentinelops-db
+    databaseName: sentinelops
+    user: sentinel
+    plan: free
+    region: singapore
+    postgresMajorVersion: 16

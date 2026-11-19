@@ -1,0 +1,444 @@
+{
+  "name": "core-konfirmasi",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        120,
+        300
+      ],
+      "id": "node-terima-keputusan",
+      "name": "Terima Keputusan"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst b = item.body || item;\nconst chat_id = (b.chat_id || item.chat_id) ? String(b.chat_id || item.chat_id).trim() : '';\nconst request_id = (b.request_id || item.request_id) ? String(b.request_id || item.request_id).trim() : '';\nconst decision = (b.decision || item.decision) ? String(b.decision || item.decision).trim().toLowerCase() : '';\nconst source = b.source || item.source || 'webhook';\n\nreturn {\n  json: {\n    chat_id,\n    request_id,\n    decision,\n    source\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        300
+      ],
+      "id": "node-normalisasi-keputusan",
+      "name": "Normalisasi Keputusan"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-request-id",
+              "leftValue": "={{ $json.request_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "cond-valid-decision",
+              "leftValue": "={{ ['confirm', 'cancel'].includes($json.decision) ? 'valid' : 'invalid' }}",
+              "rightValue": "valid",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ],
+      "id": "node-input-valid",
+      "name": "Input Valid?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  json: {\n    status: 'error',\n    message: 'Parameter request_id atau decision tidak valid. Harus confirm atau cancel.'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        480
+      ],
+      "id": "node-hasil-input-tidak-valid",
+      "name": "Hasil Input Tidak Valid"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT chat_id, nama, role FROM ide09.allowed_chats WHERE chat_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [$json.chat_id] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        740,
+        220
+      ],
+      "id": "node-cek-allowlist-konfirmasi",
+      "name": "Cek Allowlist",
+      "credentials": {
+        "postgres": {
+          "id": "VD4tpWrGjavFYIFf",
+          "name": "SentinelOps Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-chat-allowed-konf",
+              "leftValue": "={{ $json.chat_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        960,
+        220
+      ],
+      "id": "node-chat-diizinkan-konfirmasi",
+      "name": "Chat Diizinkan?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ide09.audit_log (chat_id, event, detail) VALUES ($1, 'unauthorized_confirmation_attempt', jsonb_build_object('request_id', $2::text, 'waktu', now())) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$('Normalisasi Keputusan').first().json.chat_id, $('Normalisasi Keputusan').first().json.request_id] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1180,
+        380
+      ],
+      "id": "node-catat-penolakan-allowlist-konfirmasi",
+      "name": "Catat Penolakan Allowlist",
+      "credentials": {
+        "postgres": {
+          "id": "VD4tpWrGjavFYIFf",
+          "name": "SentinelOps Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  json: {\n    status: 'unauthorized',\n    message: '⛔ Otorisasi Ditolak: Anda tidak memiliki wewenang supervisor untuk menyetujui aksi ini.'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        380
+      ],
+      "id": "node-hasil-ditolak-allowlist-konfirmasi",
+      "name": "Hasil Ditolak Allowlist"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, request_id, chat_id, tool, args, ringkasan, status FROM ide09.pending_actions WHERE request_id = $1 AND status = 'pending' ORDER BY id ASC;",
+        "options": {
+          "queryReplacement": "={{ [$('Normalisasi Keputusan').first().json.request_id] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1180,
+        140
+      ],
+      "id": "node-ambil-data-pending",
+      "name": "Ambil Data Pending",
+      "credentials": {
+        "postgres": {
+          "id": "VD4tpWrGjavFYIFf",
+          "name": "SentinelOps Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH decision_target AS (\n  SELECT id, request_id, chat_id, tool, args, ringkasan\n  FROM ide09.pending_actions\n  WHERE request_id = $1 AND status = 'pending'\n),\nins_faults AS (\n  INSERT INTO ide09.equipment_faults (asset_tag, line_area, deskripsi, severity, maintenance_type, downtime_mins, tenggat)\n  SELECT\n    COALESCE(args->>'asset_tag', 'CONV-L2'),\n    COALESCE(args->>'line_area', 'Rolling Mill Line 2'),\n    COALESCE(args->>'deskripsi', ringkasan),\n    COALESCE(args->>'severity', 'MEDIUM'),\n    COALESCE(args->>'maintenance_type', 'corrective'),\n    COALESCE((args->>'downtime_mins')::integer, 0),\n    COALESCE((args->>'tenggat')::date, CURRENT_DATE + 2)\n  FROM decision_target WHERE $2 = 'confirm' AND tool = 'lapor_fault'\n  RETURNING id\n),\nins_expenses AS (\n  INSERT INTO ide09.sparepart_expenses (asset_tag, part_name, jumlah, kategori, vendor, tanggal, catatan, sumber)\n  SELECT\n    COALESCE(args->>'asset_tag', 'PLANT-EQUIP'),\n    COALESCE(args->>'part_name', 'Suku Cadang'),\n    COALESCE((args->>'jumlah')::integer, 0),\n    COALESCE(args->>'kategori', 'mekanik'),\n    COALESCE(args->>'vendor', 'Mitra Pabrik'),\n    COALESCE((args->>'tanggal')::date, CURRENT_DATE),\n    COALESCE(args->>'catatan', ringkasan),\n    'agent'\n  FROM decision_target WHERE $2 = 'confirm' AND tool = 'catat_sparepart'\n  RETURNING id\n),\nins_reminders AS (\n  INSERT INTO ide09.inspection_reminders (chat_id, asset_tag, teks, waktu, status)\n  SELECT\n    chat_id,\n    COALESCE(args->>'asset_tag', 'PLANT-EQUIP'),\n    COALESCE(args->>'teks', ringkasan),\n    COALESCE((args->>'waktu')::timestamptz, now() + interval '1 day'),\n    'aktif'\n  FROM decision_target WHERE $2 = 'confirm' AND tool = 'buat_inspeksi'\n  RETURNING id\n),\nupd_faults AS (\n  UPDATE ide09.equipment_faults ef\n  SET status = 'selesai'\n  FROM decision_target dt\n  WHERE $2 = 'confirm' AND dt.tool = 'tutup_fault' AND ef.id = (dt.args->>'fault_id')::integer\n  RETURNING ef.id\n),\nupd_pending AS (\n  UPDATE ide09.pending_actions\n  SET status = CASE WHEN $2 = 'confirm' THEN 'confirmed' ELSE 'cancelled' END,\n      diputuskan_at = now()\n  WHERE request_id = $1 AND status = 'pending'\n  RETURNING id, tool, ringkasan\n),\naudit AS (\n  INSERT INTO ide09.audit_log (chat_id, event, detail)\n  VALUES (\n    $3,\n    CASE WHEN $2 = 'confirm' THEN 'action_confirmed' ELSE 'action_cancelled' END,\n    jsonb_build_object(\n      'request_id', $1::text,\n      'decision', $2::text,\n      'actions_affected', (SELECT count(*) FROM upd_pending),\n      'timestamp', now()\n    )\n  )\n  RETURNING id\n)\nSELECT count(*) as affected_count FROM upd_pending;",
+        "options": {
+          "queryReplacement": "={{ [$('Normalisasi Keputusan').first().json.request_id, $('Normalisasi Keputusan').first().json.decision, $('Normalisasi Keputusan').first().json.chat_id] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1400,
+        140
+      ],
+      "id": "node-proses-keputusan",
+      "name": "Proses Keputusan",
+      "credentials": {
+        "postgres": {
+          "id": "VD4tpWrGjavFYIFf",
+          "name": "SentinelOps Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = $('Normalisasi Keputusan').first().json;\nconst affected = $input.item.json.affected_count || 0;\n\nlet message = '';\nif (norm.decision === 'confirm') {\n  message = `✅ **SentinelOps AI - Action Confirmed**\\n\\n${affected} operational action(s) successfully executed and committed to plant operational tables.\\n\\nThis decision has been permanently recorded in ide09.audit_log.`;\n} else {\n  message = `❌ **SentinelOps AI - Proposal Cancelled**\\n\\nAction proposal for Request ID ${norm.request_id} has been cancelled by supervisor.\\n\\nNo operational changes were committed. Cancellation recorded in ide09.audit_log.`;\n}\n\nreturn {\n  json: {\n    status: 'success',\n    request_id: norm.request_id,\n    decision: norm.decision,\n    affected_count: affected,\n    chat_id: norm.chat_id,\n    message,\n    source: norm.source\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        140
+      ],
+      "id": "node-susun-hasil-keputusan",
+      "name": "Susun Hasil Keputusan"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-is-telegram-konf",
+              "leftValue": "={{ $json.source }}",
+              "rightValue": "telegram",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        140
+      ],
+      "id": "node-kirim-ke-telegram-konfirmasi",
+      "name": "Kirim ke Telegram?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2060,
+        60
+      ],
+      "id": "node-kabari-hasil-di-telegram",
+      "name": "Kabari Hasil di Telegram",
+      "continueOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "cUjj27wAHfil3hGf",
+          "name": "SentinelOps AI Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return { json: $('Susun Hasil Keputusan').first().json };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        140
+      ],
+      "id": "node-hasil-akhir-konfirmasi",
+      "name": "Hasil Akhir"
+    }
+  ],
+  "connections": {
+    "Terima Keputusan": {
+      "main": [
+        [
+          {
+            "node": "Normalisasi Keputusan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalisasi Keputusan": {
+      "main": [
+        [
+          {
+            "node": "Input Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Valid?": {
+      "main": [
+        [
+          {
+            "node": "Cek Allowlist",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hasil Input Tidak Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Allowlist": {
+      "main": [
+        [
+          {
+            "node": "Chat Diizinkan?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Diizinkan?": {
+      "main": [
+        [
+          {
+            "node": "Ambil Data Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Catat Penolakan Allowlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catat Penolakan Allowlist": {
+      "main": [
+        [
+          {
+            "node": "Hasil Ditolak Allowlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Data Pending": {
+      "main": [
+        [
+          {
+            "node": "Proses Keputusan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proses Keputusan": {
+      "main": [
+        [
+          {
+            "node": "Susun Hasil Keputusan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Hasil Keputusan": {
+      "main": [
+        [
+          {
+            "node": "Kirim ke Telegram?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim ke Telegram?": {
+      "main": [
+        [
+          {
+            "node": "Kabari Hasil di Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hasil Akhir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kabari Hasil di Telegram": {
+      "main": [
+        [
+          {
+            "node": "Hasil Akhir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
