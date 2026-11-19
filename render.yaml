@@ -1,20 +1,16 @@
 # =============================================================================
-# Render Blueprint Specification for SentinelOps AI
-# Deploys Managed PostgreSQL 16, n8n Copilot Web Service, and SCADA Static Dashboard
+# Render Blueprint Specification for SentinelOps AI (100% Free Tier Plan)
+# Deploys Managed PostgreSQL 16, n8n Copilot Web Service (ephemeral disk), and SCADA Dashboard
 # =============================================================================
 services:
-  # 1. n8n Copilot Automation Service
+  # 1. n8n Copilot Automation Service (Free Tier, Postgres-backed storage)
   - type: web
     name: sentinelops-n8n
     runtime: image
     image:
       url: docker.n8n.io/n8nio/n8n:2.44.7
-    plan: starter
+    plan: free
     region: singapore
-    disk:
-      name: n8n-data
-      mountPath: /home/node/.n8n
-      sizeGB: 5
     envVars:
       - key: GENERIC_TIMEZONE
         value: Asia/Jakarta
@@ -37,7 +33,7 @@ services:
       - key: EXECUTIONS_DATA_PRUNE
         value: "true"
       - key: EXECUTIONS_DATA_MAX_AGE
-        value: "336"
+        value: "168"
       - key: DB_TYPE
         value: postgresdb
       - key: DB_POSTGRESDB_HOST
