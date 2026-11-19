@@ -69,12 +69,10 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
 
-  # 2. SCADA Control-Plane Static Dashboard
+  # 2. SCADA Control-Plane Static Dashboard (Free CDN Static Site)
   - type: web
     name: sentinelops-scada-dashboard
     runtime: static
-    plan: free
-    region: singapore
     buildCommand: ""
     staticPublishPath: ./dashboard
     headers:
@@ -89,4 +87,4 @@ databases:
     user: sentinel
     plan: free
     region: singapore
-    postgresMajorVersion: 16
+    postgresMajorVersion: "16"
