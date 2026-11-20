@@ -78,12 +78,18 @@ fi
 echo "[*] Activating workflows in n8n..."
 bash scripts/publish_workflows.sh || true
 
-# 6. Extract Cloudflare Tunnel Public Webhook URL
-echo "[*] Extracting live Cloudflare tunnel URL..."
+# 6. Extract Cloudflare Tunnel Public URLs
+echo "[*] Extracting live Cloudflare tunnel URLs..."
 TUNNEL_URL=""
+DASHBOARD_TUNNEL_URL=""
 for i in {1..20}; do
-    TUNNEL_URL=$(sudo docker logs sentinelops-tunnel 2>&1 | grep -o 'https://[-a-z0-9.]*\.trycloudflare\.com' | tail -n 1)
-    if [ -n "$TUNNEL_URL" ]; then
+    if [ -z "$TUNNEL_URL" ]; then
+        TUNNEL_URL=$(sudo docker logs sentinelops-tunnel 2>&1 | grep -o 'https://[-a-z0-9.]*\.trycloudflare\.com' | tail -n 1)
+    fi
+    if [ -z "$DASHBOARD_TUNNEL_URL" ]; then
+        DASHBOARD_TUNNEL_URL=$(sudo docker logs sentinelops-tunnel-dashboard 2>&1 | grep -o 'https://[-a-z0-9.]*\.trycloudflare\.com' | tail -n 1)
+    fi
+    if [ -n "$TUNNEL_URL" ] && [ -n "$DASHBOARD_TUNNEL_URL" ]; then
         break
     fi
     sleep 1
@@ -94,10 +100,13 @@ echo "=========================================================="
 echo "  🚀 SentinelOps AI is LIVE on AWS!"
 echo "=========================================================="
 PUBLIC_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
-echo " - SCADA 3D Web Dashboard : http://${PUBLIC_IP}:8085"
-echo " - n8n Automation Engine  : http://${PUBLIC_IP}:5690"
+if [ -n "$DASHBOARD_TUNNEL_URL" ]; then
+    echo " - SCADA 3D Web Dashboard (Public HTTPS) : ${DASHBOARD_TUNNEL_URL}"
+fi
+echo " - SCADA 3D Web Dashboard (Direct IP)    : http://${PUBLIC_IP}:8085"
+echo " - n8n Automation Engine                 : http://${PUBLIC_IP}:5690"
 if [ -n "$TUNNEL_URL" ]; then
-    echo " - Cloudflare Public URL  : ${TUNNEL_URL}"
+    echo " - n8n Webhook Tunnel URL                : ${TUNNEL_URL}"
     sed -i "s|^PUBLIC_WEBHOOK_URL=.*|PUBLIC_WEBHOOK_URL=${TUNNEL_URL}|" .env || true
     echo ""
     echo "[*] Auto-registering Telegram bot webhook with Cloudflare tunnel..."

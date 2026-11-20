@@ -93,6 +93,14 @@ services:
     depends_on:
       - n8n
 
+  tunnel-dashboard:
+    image: cloudflare/cloudflared:latest
+    container_name: sentinelops-tunnel-dashboard
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://dashboard:80
+    depends_on:
+      - dashboard
+
 volumes:
   pg_data:
   n8n_data:
