@@ -59,11 +59,13 @@ temp_creds_path = Path("/tmp/sentinelops_creds.json") if os.name != "nt" else Pa
 with open(temp_creds_path, "w", encoding="utf-8") as f:
     json.dump(creds, f, indent=2)
 
+docker_prefix = [] if os.name == "nt" else ["sudo"]
+
 try:
     # Copy into n8n container
-    subprocess.run(["sudo", "docker", "cp", str(temp_creds_path), "sentinelops-n8n:/home/node/credentials.json"], check=True)
+    subprocess.run(docker_prefix + ["docker", "cp", str(temp_creds_path), "sentinelops-n8n:/home/node/credentials.json"], check=True)
     # Import into n8n
-    subprocess.run(["sudo", "docker", "exec", "sentinelops-n8n", "n8n", "import:credentials", "--input=/home/node/credentials.json"], check=True)
+    subprocess.run(docker_prefix + ["docker", "exec", "sentinelops-n8n", "n8n", "import:credentials", "--input=/home/node/credentials.json"], check=True)
     print("[+] Successfully imported n8n credentials for Telegram, Postgres, and OpenAI!")
 except Exception as e:
     print(f"[-] Warning: Failed to import n8n credentials: {e}")
