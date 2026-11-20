@@ -29,7 +29,7 @@ services:
     container_name: sentinelops-n8n
     restart: unless-stopped
     ports:
-      - "${HOST_BIND_IP:-0.0.0.0}:${N8N_HOST_PORT:-5690}:5678"
+      - "127.0.0.1:${N8N_HOST_PORT:-5690}:5678"
     environment:
       - GENERIC_TIMEZONE=Asia/Jakarta
       - TZ=Asia/Jakarta
@@ -54,7 +54,6 @@ services:
       - EXECUTIONS_DATA_PRUNE_MAX_COUNT=${EXECUTIONS_DATA_PRUNE_MAX_COUNT:-10000}
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./workflows:/home/node/workflows:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,7 +78,7 @@ services:
     container_name: sentinelops-dashboard
     restart: unless-stopped
     ports:
-      - "${HOST_BIND_IP:-0.0.0.0}:${SCADA_HOST_PORT:-8085}:80"
+      - "127.0.0.1:${SCADA_HOST_PORT:-8085}:80"
     volumes:
       - ./dashboard:/usr/share/nginx/html:ro
     depends_on:

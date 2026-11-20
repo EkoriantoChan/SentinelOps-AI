@@ -35,7 +35,14 @@ Thumbs.db
 *.swp
 *.swo
 
-# Temporary test artifacts
+# Temporary test & debug artifacts
 test_*.json
 test_*.py
 scratch/
+~$*.*
+*.tmp
+*.bak
+temp_*.*
+.user_uploaded/
+scripts/inspect_*.py
+

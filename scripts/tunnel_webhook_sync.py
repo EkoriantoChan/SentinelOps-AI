@@ -7,7 +7,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "9045682587:AAGOHDz0usTpkSJ2t1PBcJ3DNyjW9H2gWko")
+bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+if not bot_token:
+    print("[!] TELEGRAM_BOT_TOKEN environment variable is not set. Please configure it in .env")
+    exit(1)
+
 workflow_id = "hy4bNgxoLJSKoHCW"
 node_id = "node-telegram-trigger"
 webhook_id = "0293d9c9-8e61-42db-8f8d-e0552187e47f"
