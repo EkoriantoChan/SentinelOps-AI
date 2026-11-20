@@ -2,9 +2,20 @@ import os
 import sys
 import json
 import urllib.request
-from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+# Load .env without requiring third-party dotenv
+env_path = Path(__file__).resolve().parent.parent / ".env"
+if env_path.exists():
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    except Exception as e:
+        print(f"Warning: could not parse .env: {e}")
 
 bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "9045682587:AAGOHDz0usTpkSJ2t1PBcJ3DNyjW9H2gWko")
 webhook_base = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else os.getenv("PUBLIC_WEBHOOK_URL", "").rstrip("/")
@@ -31,7 +42,10 @@ except Exception as e:
     print("Error:", e)
 
 info_url = f"https://api.telegram.org/bot{bot_token}/getWebhookInfo"
-with urllib.request.urlopen(info_url) as resp:
-    info = json.loads(resp.read().decode())
-    print("\nWebhook Info:")
-    print(json.dumps(info, indent=2))
+try:
+    with urllib.request.urlopen(info_url) as resp:
+        info = json.loads(resp.read().decode())
+        print("\nWebhook Info:")
+        print(json.dumps(info, indent=2))
+except Exception as e:
+    print("Error fetching webhook info:", e)

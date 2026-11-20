@@ -54,6 +54,7 @@ services:
       - EXECUTIONS_DATA_PRUNE_MAX_COUNT=${EXECUTIONS_DATA_PRUNE_MAX_COUNT:-10000}
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./workflows:/home/node/workflows:ro
     depends_on:
       postgres:
         condition: service_healthy

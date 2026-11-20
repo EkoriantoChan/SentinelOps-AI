@@ -52,12 +52,19 @@ sleep 15
 echo "[*] Initializing ide09 schema in PostgreSQL..."
 sudo docker exec -i sentinelops-postgres psql -U sentinel -d sentinelops < sql/schema.sql
 
-# 5. Import the 4 workflows into n8n
+# 5. Provision credentials and import workflows into n8n
+echo "[*] Setting up credentials in n8n..."
+python3 scripts/setup_n8n_credentials.py || true
+
 echo "[*] Importing workflows into n8n..."
+sudo docker cp workflows sentinelops-n8n:/home/node/
 for wf in workflows/*.json; do
     echo " -> Importing $wf..."
-    sudo docker exec -i sentinelops-n8n n8n import:workflow --input=- < "$wf" || true
+    sudo docker exec sentinelops-n8n n8n import:workflow --input="/home/node/$wf" || true
 done
+
+echo "[*] Activating workflows in n8n..."
+sudo docker exec sentinelops-n8n n8n update:workflow --all --active=true || true
 
 # 6. Extract Cloudflare Tunnel Public Webhook URL
 echo "[*] Extracting live Cloudflare tunnel URL..."
@@ -73,6 +80,7 @@ echo " - SCADA 3D Web Dashboard : http://${PUBLIC_IP}:8085"
 echo " - n8n Automation Engine  : http://${PUBLIC_IP}:5690"
 if [ -n "$TUNNEL_URL" ]; then
     echo " - Cloudflare Public URL  : ${TUNNEL_URL}"
+    sed -i "s|^PUBLIC_WEBHOOK_URL=.*|PUBLIC_WEBHOOK_URL=${TUNNEL_URL}|" .env || true
     echo ""
     echo "[*] Auto-registering Telegram bot webhook with Cloudflare tunnel..."
     python3 scripts/register_telegram_webhook.py "$TUNNEL_URL" || true
