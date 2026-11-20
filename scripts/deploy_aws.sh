@@ -5,11 +5,11 @@ echo "=========================================================="
 echo "  SentinelOps AI - Automated AWS Production Deployment"
 echo "=========================================================="
 
-# 1. Update and install Docker if not present
+# 1. Update and install Docker & Python tools if not present
 if ! command -v docker &> /dev/null; then
     echo "[*] Installing Docker and Docker Compose..."
     sudo apt-get update -y
-    sudo apt-get install -y ca-certificates curl gnupg lsb-release
+    sudo apt-get install -y ca-certificates curl gnupg lsb-release python3 python3-pip
     sudo mkdir -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
@@ -19,24 +19,46 @@ if ! command -v docker &> /dev/null; then
     echo "[+] Docker installed successfully!"
 fi
 
-# 2. Setup .env from example if not exists
+# 2. Setup .env
 if [ ! -f .env ]; then
     echo "[*] Creating .env from .env.example..."
     cp .env.example .env
+fi
+
+# Ensure tokens are populated
+sed -i 's|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=9045682587:AAGOHDz0usTpkSJ2t1PBcJ3DNyjW9H2gWko|' .env
+sed -i 's|^SUPERVISOR_CHAT_ID=.*|SUPERVISOR_CHAT_ID=1845199518|' .env
+
+# Check for OPENAI_API_KEY
+if ! grep -q '^OPENAI_API_KEY=sk-' .env; then
+    if [ -n "$OPENAI_API_KEY" ]; then
+        sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${OPENAI_API_KEY}|" .env
+    else
+        echo ""
+        read -p "Enter your OPENAI_API_KEY (starts with sk-): " user_key
+        sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${user_key}|" .env
+    fi
 fi
 
 # 3. Pull and start all Docker services
 echo "[*] Launching SentinelOps AI containers (Postgres, n8n, 3D Dashboard, Task Runners, Cloudflare Tunnel)..."
 sudo docker compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans
 
-echo "[*] Waiting for PostgreSQL and n8n to be healthy..."
-sleep 10
+echo "[*] Waiting 15 seconds for PostgreSQL and n8n to be healthy..."
+sleep 15
 
 # 4. Initialize Database Schema
 echo "[*] Initializing ide09 schema in PostgreSQL..."
 sudo docker exec -i sentinelops-postgres psql -U sentinel -d sentinelops < sql/schema.sql
 
-# 5. Extract Cloudflare Tunnel Public Webhook URL
+# 5. Import the 4 workflows into n8n
+echo "[*] Importing workflows into n8n..."
+for wf in workflows/*.json; do
+    echo " -> Importing $wf..."
+    sudo docker exec -i sentinelops-n8n n8n import:workflow --input=- < "$wf" || true
+done
+
+# 6. Extract Cloudflare Tunnel Public Webhook URL
 echo "[*] Extracting live Cloudflare tunnel URL..."
 sleep 5
 TUNNEL_URL=$(sudo docker logs sentinelops-tunnel 2>&1 | grep -o 'https://[-a-z0-9.]*\.trycloudflare\.com' | tail -n 1)
