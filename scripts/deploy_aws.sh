@@ -76,7 +76,7 @@ else
 fi
 
 echo "[*] Activating workflows in n8n..."
-sudo docker exec sentinelops-n8n n8n update:workflow --all --active=true || true
+bash scripts/publish_workflows.sh || true
 
 # 6. Extract Cloudflare Tunnel Public Webhook URL
 echo "[*] Extracting live Cloudflare tunnel URL..."
