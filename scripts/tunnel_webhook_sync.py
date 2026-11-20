@@ -77,5 +77,22 @@ def sync_webhook():
         print(f"[!] Error setting webhook: {e}")
         return False
 
+import time
+import sys
+
+def watch_loop(interval=10):
+    print(f"[*] Starting webhook watchdog loop (checking every {interval}s)...", flush=True)
+    while True:
+        try:
+            sync_webhook()
+        except Exception as e:
+            print(f"[!] Watchdog error: {e}", flush=True)
+        time.sleep(interval)
+
+
 if __name__ == '__main__':
-    sync_webhook()
+    if '--watch' in sys.argv:
+        watch_loop(interval=10)
+    else:
+        sync_webhook()
+
