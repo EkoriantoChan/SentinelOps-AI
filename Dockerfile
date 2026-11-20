@@ -1,0 +1,20 @@
+FROM docker.io/n8nio/n8n:2.44.7
+
+USER root
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+USER node
+
+ENV PORT=5678
+ENV N8N_PORT=5678
+ENV GENERIC_TIMEZONE=Asia/Jakarta
+ENV TZ=Asia/Jakarta
+ENV N8N_RUNNERS_MODE=internal
+ENV N8N_NATIVE_PYTHON_RUNNER=true
+ENV N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+ENV NODE_FUNCTION_ALLOW_BUILTIN=*
+ENV NODE_FUNCTION_ALLOW_EXTERNAL=*
+
+EXPOSE 5678
+
+ENTRYPOINT ["/entrypoint.sh"]
