@@ -57,19 +57,37 @@ echo "[*] Setting up credentials in n8n..."
 python3 scripts/setup_n8n_credentials.py || true
 
 echo "[*] Importing workflows into n8n..."
-sudo docker cp workflows sentinelops-n8n:/home/node/
-for wf in workflows/*.json; do
-    echo " -> Importing $wf..."
-    sudo docker exec sentinelops-n8n n8n import:workflow --input="/home/node/$wf" || true
-done
+if sudo docker exec sentinelops-n8n ls /home/node/workflows > /dev/null 2>&1; then
+    sudo docker exec sentinelops-n8n n8n import:workflow --separate --input=/home/node/workflows || {
+        for wf in workflows/*.json; do
+            echo " -> Importing $wf..."
+            sudo docker exec sentinelops-n8n n8n import:workflow --input="/home/node/$wf" || true
+        done
+    }
+else
+    sudo docker cp workflows sentinelops-n8n:/tmp/workflows
+    sudo docker exec sentinelops-n8n n8n import:workflow --separate --input=/tmp/workflows || {
+        for wf in workflows/*.json; do
+            base=$(basename "$wf")
+            echo " -> Importing $base..."
+            sudo docker exec sentinelops-n8n n8n import:workflow --input="/tmp/workflows/$base" || true
+        done
+    }
+fi
 
 echo "[*] Activating workflows in n8n..."
 sudo docker exec sentinelops-n8n n8n update:workflow --all --active=true || true
 
 # 6. Extract Cloudflare Tunnel Public Webhook URL
 echo "[*] Extracting live Cloudflare tunnel URL..."
-sleep 5
-TUNNEL_URL=$(sudo docker logs sentinelops-tunnel 2>&1 | grep -o 'https://[-a-z0-9.]*\.trycloudflare\.com' | tail -n 1)
+TUNNEL_URL=""
+for i in {1..20}; do
+    TUNNEL_URL=$(sudo docker logs sentinelops-tunnel 2>&1 | grep -o 'https://[-a-z0-9.]*\.trycloudflare\.com' | tail -n 1)
+    if [ -n "$TUNNEL_URL" ]; then
+        break
+    fi
+    sleep 1
+done
 
 echo ""
 echo "=========================================================="

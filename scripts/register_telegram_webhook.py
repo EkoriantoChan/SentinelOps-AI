@@ -31,15 +31,27 @@ print(f" - Bot Token: {bot_token[:10]}...")
 print(f" - Webhook URL: {target_url}")
 print(f" - Secret Token: {secret_token}")
 
-set_url = f"https://api.telegram.org/bot{bot_token}/setWebhook?url={target_url}&secret_token={secret_token}&allowed_updates=[\"message\",\"callback_query\"]"
+payload = {
+    "url": target_url,
+    "secret_token": secret_token,
+    "allowed_updates": ["message", "callback_query"]
+}
 
-req = urllib.request.Request(set_url)
+req = urllib.request.Request(
+    f"https://api.telegram.org/bot{bot_token}/setWebhook",
+    data=json.dumps(payload).encode("utf-8"),
+    headers={"Content-Type": "application/json"}
+)
+
 try:
     with urllib.request.urlopen(req) as resp:
         result = json.loads(resp.read().decode())
         print("Success:", result)
 except Exception as e:
-    print("Error:", e)
+    if hasattr(e, "read"):
+        print("Error:", e.read().decode())
+    else:
+        print("Error:", e)
 
 info_url = f"https://api.telegram.org/bot{bot_token}/getWebhookInfo"
 try:
