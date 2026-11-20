@@ -42,7 +42,8 @@ fi
 
 # 3. Pull and start all Docker services
 echo "[*] Launching SentinelOps AI containers (Postgres, n8n, 3D Dashboard, Task Runners, Cloudflare Tunnel)..."
-sudo docker compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans
+sudo docker compose down --remove-orphans || true
+sudo docker compose up -d --remove-orphans
 
 echo "[*] Waiting 15 seconds for PostgreSQL and n8n to be healthy..."
 sleep 15
