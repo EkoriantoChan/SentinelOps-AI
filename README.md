@@ -10,6 +10,11 @@
 [![Timezone](https://img.shields.io/badge/Timezone-Asia%2FJakarta%20(WIB)-brightgreen.svg)]()
 [![Compliance](https://img.shields.io/badge/HITL%20Compliance-100%25-success.svg)]()
 
+<p align="center">
+  <img src="docs/scada_dashboard_preview.jpg" alt="SentinelOps AI SCADA 3D Digital Twin & Governance Control-Plane" width="100%" />
+</p>
+
+
 ---
 
 ## 📋 Capstone Project Submission Details
