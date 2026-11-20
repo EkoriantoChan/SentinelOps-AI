@@ -1,0 +1,12 @@
+# =============================================================================
+# Production Docker Compose Override for AWS (EC2 / Lightsail)
+# Exposes SCADA Dashboard on port 8085 (or 80) and n8n on port 5690
+# =============================================================================
+services:
+  n8n:
+    ports:
+      - "0.0.0.0:5690:5678"
+
+  dashboard:
+    ports:
+      - "0.0.0.0:8085:80"
